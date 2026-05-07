@@ -787,22 +787,109 @@ function saveResult(){const p=cp();if(!p)return;const r=p.result||(p.result=mkRe
 function undone(){const p=cp();p.result.isDone=false;saveProject(p);renderResult();}
 function rmMedia(i){cp().result.mediaList.splice(i,1);saveProject(cp());renderResult();}
 function rmKw(i){cp().result.keywords.splice(i,1);saveProject(cp());renderResult();}
-function newPj(){EDIT=false;clearForm();$('formModal').classList.add('open');}
-function editPj(){EDIT=true;const p=cp();if(!p)return;$('fName').value=p.name||'';$('fMembers').value=(p.members||[]).map(m=>typeof m==='object'?(m.rank?m.name+'('+m.rank+')':m.name):m).join(', ');$('fBudget').value=p.budget.total||'';$('fStartDate').value=p.startDate||'';$('fEndDate').value=p.endDate||'';$('formModal').classList.add('open');}
+function editPj(){
+  EDIT=true;const p=cp();if(!p)return;
+  $('fName').value=p.name||'';
+  $('fMembers').value=(p.members||[]).map(m=>typeof m==='object'?(m.rank?m.name+'('+m.rank+')':m.name):m).join(', ');
+  $('fBudget').value=p.budget.total||'';
+  $('fStartDate').value=p.startDate||'';
+  $('fEndDate').value=p.endDate||'';
+  // 유형 복원
+  document.querySelectorAll('#fType .fp').forEach(b=>{b.classList.toggle('on',(p.type||'').includes(b.dataset.v));});
+  // 주요구성 복원
+  document.querySelectorAll('#fComp .fp').forEach(b=>{b.classList.toggle('on',(p.scale2||p.comp||'').includes(b.dataset.v));});
+  // 규모 복원
+  document.querySelectorAll('#fScale .fp').forEach(b=>{b.classList.toggle('on',(p.scale||'').includes(b.dataset.v));});
+  // 버튼 텍스트 수정 모드로
+  const btn=document.querySelector('#formModal .btn-primary');
+  if(btn)btn.textContent='저장';
+  $('formModal').classList.add('open');
+}
 function closeForm(){$('formModal').classList.remove('open');}
 function clearForm(){['fName','fMembers','fBudget','fStartDate','fEndDate'].forEach(id=>{const el=$(id);if(el)el.value='';});document.querySelectorAll('.fp.on').forEach(b=>b.classList.remove('on'));}
 function submitForm(){
-  const name=$('fName').value.trim(),type=[...document.querySelectorAll('#fType .fp.on')].map(b=>b.dataset.v).join(', '),scale=[...document.querySelectorAll('#fScale .fp.on')].map(b=>b.dataset.v).join('');
+  const name=$('fName').value.trim();
+  const type=[...document.querySelectorAll('#fType .fp.on')].map(b=>b.dataset.v).join(', ');
+  const comp=[...document.querySelectorAll('#fComp .fp.on')].map(b=>b.dataset.v).join(', ');
+  const scale=[...document.querySelectorAll('#fScale .fp.on')].map(b=>b.dataset.v).join('');
   const rawM=$('fMembers').value.trim();
   const mems=rawM?rawM.split(',').map(s=>{const t=s.trim();const m=t.match(/^(.+?)\((.+?)\)$/);return m?{name:m[1].trim(),rank:m[2].trim()}:{name:t,rank:''};}).filter(m=>m.name):[];
   const bt=n($('fBudget').value),startDate=$('fStartDate').value||'',endDate=$('fEndDate').value||'';
-  if(EDIT&&CUR!==null){const p=PJS[CUR];p.name=name||p.name;p.type=type||p.type;p.scale=scale||p.scale;p.members=mems.length?mems:p.members;p.startDate=startDate;p.endDate=endDate;if(bt>0)p.budget.total=bt;saveProject(p);closeForm();return;}
+  if(EDIT&&CUR!==null){
+    const p=PJS[CUR];
+    p.name=name||p.name;
+    if(type)p.type=type;
+    if(comp)p.comp=comp;
+    if(scale)p.scale=scale;
+    if(mems.length)p.members=mems;
+    p.startDate=startDate;p.endDate=endDate;
+    if(bt>0)p.budget.total=bt;
+    saveProject(p);closeForm();showDash();return;
+  }
   const fbId=uid();const defM=mems.length?mems:[{name:'담당자1',rank:''},{name:'담당자2',rank:''}];
-  const pj={fbId,createdAt:Date.now(),name:name||'새 행사',type,scale,members:defM,startDate,endDate,tasks:[],mp:{},budget:mkBudget(bt),result:mkResult()};
+  const pj={fbId,createdAt:Date.now(),name:name||'새 행사',type,comp,scale,members:defM,startDate,endDate,tasks:[],mp:{},budget:mkBudget(bt),result:mkResult()};
   pj.tasks=mkTasks(defM);saveProject(pj);closeForm();
+}
+function newPj(){
+  EDIT=false;clearForm();
+  const btn=document.querySelector('#formModal .btn-primary');
+  if(btn)btn.textContent='대시보드 생성';
+  $('formModal').classList.add('open');
 }
 function delPj(){if(!confirm('이 프로젝트를 삭제할까요?'))return;const fbId=PJS[CUR].fbId;removeProject(fbId);CUR=null;}
 function exportCSV(){const p=cp();if(!p)return;const phases=getPhases(p);const rows=[['단계','업무','상위업무','우선순위','MAIN','SUB','시작일','종료일','상태']];p.tasks.forEach(t=>{const par=t.parentId?p.tasks.find(x=>x.id===t.parentId):null;rows.push([phases[t.phase]||('단계 '+(t.phase+1)),t.name,par?par.name:'',t.priority==='high'?'높음':t.priority==='mid'?'보통':'낮음',getMain(t),getSubs(t).join('/'),t.startDate||'',t.endDate||'',t.done?'완료':'미완료']);});const csv=rows.map(r=>r.map(c=>'"'+c+'"').join(',')).join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(p.name||'행사')+'.csv';a.click();URL.revokeObjectURL(url);}
+// ── 폼 버튼 인라인 편집 / 추가 ──
+function editFpBtn(btn){
+  btn.setAttribute('draggable','false');
+  const orig=btn.textContent;
+  const inp=document.createElement('input');
+  inp.type='text';inp.value=orig;
+  inp.style.cssText='font-size:12px;border:none;border-bottom:2px solid #185fa5;outline:none;background:transparent;width:'+(Math.max(orig.length,4)*8+8)+'px;padding:0;color:#1a1a1a;';
+  btn.innerHTML='';btn.appendChild(inp);
+  inp.focus();inp.select();
+  inp.addEventListener('click',e=>e.stopPropagation());
+  const save=()=>{
+    const v=inp.value.trim()||orig;
+    btn.textContent=v;btn.dataset.v=v;
+    btn.setAttribute('draggable','true');
+  };
+  inp.addEventListener('blur',save);
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();inp.blur();}
+    if(e.key==='Escape'){inp.value=orig;inp.blur();}
+    e.stopPropagation();
+  });
+}
+function addFpBtn(groupId, multi){
+  const pr=$(groupId);if(!pr)return;
+  const addBtn=pr.querySelector('.fp-add');
+  const inp=document.createElement('input');
+  inp.type='text';inp.placeholder='새 항목 입력...';
+  inp.style.cssText='font-size:12px;border:1px solid #185fa5;border-radius:16px;padding:4px 12px;outline:none;width:120px;';
+  pr.insertBefore(inp,addBtn);
+  inp.focus();
+  const commit=()=>{
+    const v=inp.value.trim();
+    inp.remove();
+    if(!v)return;
+    const btn=document.createElement('button');
+    btn.className='fp on';btn.dataset.v=v;btn.textContent=v;
+    btn.setAttribute('ondblclick','editFpBtn(this)');
+    btn.addEventListener('dblclick',e=>{e.stopPropagation();editFpBtn(btn);});
+    btn.addEventListener('click',()=>{
+      if(!multi)pr.querySelectorAll('.fp').forEach(b=>b.classList.remove('on'));
+      btn.classList.toggle('on');
+    });
+    pr.insertBefore(btn,addBtn);
+  };
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='Escape'){inp.remove();}
+    e.stopPropagation();
+  });
+}
+window.editFpBtn=editFpBtn;window.addFpBtn=addFpBtn;
 ['fType','fComp','fScale'].forEach((id,idx)=>{const el=$(id);if(!el)return;el.querySelectorAll('.fp').forEach(btn=>{btn.addEventListener('click',()=>{if(idx!==1)el.querySelectorAll('.fp').forEach(b=>b.classList.remove('on'));btn.classList.toggle('on');});});});
 // ── 드래그 앤 드롭 (상위+하위 모두 지원) ──
 let dragId=null;
@@ -974,6 +1061,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .fi:focus{border-color:#185fa5}.fhint{font-size:11px;color:#aaa;margin-top:3px}
 .pr{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .fp{padding:5px 12px;font-size:12px;border-radius:14px;border:1px solid #ddd;cursor:pointer;background:#fff;color:#666;user-select:none}
+.fp-add{font-size:13px;padding:4px 10px;border-radius:14px;border:1px dashed #185fa5;background:#fff;color:#185fa5;cursor:pointer;font-weight:600;line-height:1;transition:background .12s}
+.fp-add:hover{background:#e6f1fb}
 .fp:hover{border-color:#aaa}.fp.on{background:#e6f1fb;border-color:#185fa5;color:#0c447c;font-weight:500}
 .btn-skip{padding:8px 14px;font-size:12px;border-radius:7px;border:1px solid #ddd;background:transparent;cursor:pointer;color:#aaa}
 .btn-ghost{padding:8px 14px;font-size:12px;border-radius:7px;border:1px solid #ddd;background:transparent;cursor:pointer;color:#666}
@@ -1319,11 +1408,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="modal">
     <div class="modal-hd"><span class="modal-ttl">📅 행사 기본 정보</span><button class="modal-x" onclick="closeForm()">✕</button></div>
     <div class="fg"><label class="fl">행사명</label><input type="text" class="fi" id="fName" placeholder="예: 2025 AI 혁신 컨퍼런스"></div>
-    <div class="fg"><label class="fl">행사 유형</label><div class="pr" id="fType">
-      <button class="fp" data-v="컨퍼런스/포럼">컨퍼런스/포럼</button><button class="fp" data-v="전시/박람회">전시/박람회</button><button class="fp" data-v="기자간담회">기자간담회</button><button class="fp" data-v="웨비나">웨비나</button><button class="fp" data-v="세미나/워크숍">세미나/워크숍</button>
+    <div class="fg"><label class="fl">행사 유형 <span class="fhint" style="display:inline;margin-left:6px">더블클릭으로 수정 · + 버튼으로 추가</span></label><div class="pr" id="fType">
+      <button class="fp" data-v="컨퍼런스/포럼" ondblclick="editFpBtn(this)">컨퍼런스/포럼</button><button class="fp" data-v="전시/박람회" ondblclick="editFpBtn(this)">전시/박람회</button><button class="fp" data-v="기자간담회" ondblclick="editFpBtn(this)">기자간담회</button><button class="fp" data-v="웨비나" ondblclick="editFpBtn(this)">웨비나</button><button class="fp" data-v="세미나/워크숍" ondblclick="editFpBtn(this)">세미나/워크숍</button>
+      <button class="fp-add" onclick="addFpBtn('fType',false)" title="유형 추가">＋</button>
     </div></div>
-    <div class="fg"><label class="fl">주요 구성 (복수 선택)</label><div class="pr" id="fComp">
-      <button class="fp" data-v="VIP 초청">VIP 초청</button><button class="fp" data-v="발표 세션">발표 세션</button><button class="fp" data-v="시연 부스">시연 부스</button><button class="fp" data-v="상담 신청">상담 신청</button><button class="fp" data-v="만족도 조사">만족도 조사</button><button class="fp" data-v="기념품 제공">기념품 제공</button><button class="fp" data-v="미디어 브리핑">미디어 브리핑</button><button class="fp" data-v="온라인 중계">온라인 중계</button>
+    <div class="fg"><label class="fl">주요 구성 <span class="fhint" style="display:inline;margin-left:6px">더블클릭으로 수정 · + 버튼으로 추가</span></label><div class="pr" id="fComp">
+      <button class="fp" data-v="VIP 초청" ondblclick="editFpBtn(this)">VIP 초청</button><button class="fp" data-v="발표 세션" ondblclick="editFpBtn(this)">발표 세션</button><button class="fp" data-v="시연 부스" ondblclick="editFpBtn(this)">시연 부스</button><button class="fp" data-v="상담 신청" ondblclick="editFpBtn(this)">상담 신청</button><button class="fp" data-v="만족도 조사" ondblclick="editFpBtn(this)">만족도 조사</button><button class="fp" data-v="기념품 제공" ondblclick="editFpBtn(this)">기념품 제공</button><button class="fp" data-v="미디어 브리핑" ondblclick="editFpBtn(this)">미디어 브리핑</button><button class="fp" data-v="온라인 중계" ondblclick="editFpBtn(this)">온라인 중계</button>
+      <button class="fp-add" onclick="addFpBtn('fComp',true)" title="구성 추가">＋</button>
     </div></div>
     <div class="fg"><label class="fl">모객 규모</label><div class="pr" id="fScale">
       <button class="fp" data-v="소규모(50명↓)">소규모 · 50명↓</button><button class="fp" data-v="중규모(~200명)">중규모 · ~200명</button><button class="fp" data-v="대규모(~500명)">대규모 · ~500명</button><button class="fp" data-v="초대형(500명+)">초대형 · 500명↑</button>
