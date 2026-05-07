@@ -1201,42 +1201,70 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .mobile-app-title{font-size:14px;font-weight:700;color:#1a1a1a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* 메인 */
   .main-wrap{padding-top:0}
-  .main{padding:16px 14px;max-width:100%}
+  .main{padding:12px 10px;max-width:100%}
   /* 대시보드 헤더 */
-  .db-hd{flex-direction:column;align-items:flex-start;gap:10px}
-  .db-ttl{font-size:18px}
+  .db-hd{flex-direction:column;align-items:flex-start;gap:8px}
+  .db-ttl{font-size:17px;word-break:keep-all}
+  .db-sub{font-size:11px}
   /* 탭 */
   .tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .tabs::-webkit-scrollbar{display:none}
-  .tb{white-space:nowrap;flex-shrink:0;font-size:11px;padding:5px 10px}
-  /* KPI 카드 */
-  .krow{grid-template-columns:repeat(2,1fr);gap:6px}
-  .kcard{padding:10px 11px}
-  .kval{font-size:17px}
-  /* 단계 그리드 */
-  .pgrid{grid-template-columns:repeat(2,1fr);gap:8px}
-  /* 태스크 보드 */
+  .tb{white-space:nowrap;flex-shrink:0;font-size:11px;padding:5px 9px}
+  /* KPI 카드: 퍼센트/숫자 크기 줄이기 */
+  .krow{grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:10px}
+  .kcard{padding:9px 10px}
+  .klbl{font-size:10px}
+  .kval{font-size:15px}
+  /* 단계 카드: 퍼센트·진행바·수동조정 숨김 */
+  .pgrid{grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+  .pc{padding:10px 11px}
+  .pc-pct{display:none}          /* 퍼센트 숨김 */
+  .mpr{display:none}             /* 수동 조정 숨김 */
+  .pbar{display:none}            /* 진행바 숨김 */
+  .pc-ct{font-size:10px;margin-bottom:0}
+  .pc-nm{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .phase-num-badge{font-size:9px;padding:1px 5px}
+  /* 태스크 카드: 배지 줄이고 텍스트 우선 */
   .board-2col{grid-template-columns:1fr}
+  .tr{padding:7px 8px;gap:5px}
+  .tn{font-size:12px;word-break:keep-all;white-space:normal;line-height:1.4}
+  .tr-date{display:none}         /* 날짜 숨김 */
+  .pbg{font-size:9px;padding:1px 5px}
+  .assignee-main,.assignee-sub{font-size:9px;padding:1px 5px}
+  .tr-actions{gap:2px;flex-shrink:0}
+  .child-toggle,.child-toggle-add{font-size:9px;padding:1px 5px}
+  .tr-edit-btn,.tr-del-btn{font-size:11px}
+  .drag-handle{display:none}     /* 드래그핸들 숨김 (모바일 터치 대신) */
+  /* 하위업무 */
+  .sub-group{margin-left:12px}
+  .sub-tr-body{padding:4px 7px;gap:4px}
   /* 팀 그리드 */
   .team-grid{grid-template-columns:1fr}
+  .tmc-phases{grid-template-columns:1fr}
   /* 캘린더 */
   .cal-grid{gap:2px}
-  .cal-cell{min-height:52px;padding:3px}
+  .cal-cell{min-height:50px;padding:3px}
   .cal-task-dot{font-size:8px;padding:0 2px}
   .cal-day-num{font-size:10px}
+  .cal-add-hint{display:none}
   /* 예산 */
-  .bcat-hd,.bcat-row{grid-template-columns:1fr 70px 70px 50px 24px;font-size:11px}
+  .bcat-hd,.bcat-row{grid-template-columns:1fr 60px 60px 44px 24px;font-size:11px}
   /* 모달 */
-  .modal{width:95vw;max-height:90vh;overflow-y:auto;margin:5vh auto}
+  .modal{width:96vw;max-height:90vh;overflow-y:auto;margin:5vh auto;padding:16px}
+  .g2{grid-template-columns:1fr}
   /* tpanel */
-  .tpanel{padding:12px 12px}
-  /* pgrid 숨기기 대신 스크롤 */
-  .pgrid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .tpanel{padding:11px 10px}
   /* 디데이 배너 */
-  .dday-banner{font-size:12px;padding:10px 12px}
-  .dday-num{font-size:18px}
+  .dday-banner{font-size:12px;padding:9px 11px;flex-wrap:wrap;gap:4px}
+  .dday-num{font-size:16px}
+  /* 단계 타이틀 (tp-hd) */
+  .tp-ttl{font-size:12px}
+  /* 공유메모 */
+  .shared-memo-ta{min-height:52px;font-size:12px}
   /* 사이드바 오버레이 */
   .sb-overlay{display:block}
+  /* 태스크 힌트 */
+  .task-hint{font-size:11px;padding:6px 10px}
 }
 @media(min-width:769px){
   .mobile-topbar{display:none}
