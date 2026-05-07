@@ -46,6 +46,8 @@ function addPhase(p){
   saveProject(p);
   if(TAB==='dash'){renderPG();renderTP();}else renderBoard();
 }
+function addPhaseNow(){addPhase(cp());}
+function removePhaseNow(i){removePhase(cp(),i);}
 function removePhase(p,i){
   if(!p)return;
   const phases=getPhases(p);
@@ -60,6 +62,36 @@ function removePhase(p,i){
   saveProject(p);
   SEL=null;
   if(TAB==='dash'){renderPG();renderTP();}else renderBoard();
+}
+// ── 언두 히스토리 ──
+const MAX_UNDO=30;
+let undoStack=[];
+function pushUndo(p){
+  if(!p)return;
+  try{
+    undoStack.push(JSON.stringify(p));
+    if(undoStack.length>MAX_UNDO)undoStack.shift();
+  }catch(e){}
+}
+function undoLast(){
+  if(!undoStack.length){showToast('더 이상 되돌릴 내용이 없어요');return;}
+  const snap=undoStack.pop();
+  try{
+    const restored=JSON.parse(snap);
+    const idx=PJS.findIndex(p=>p.fbId===restored.fbId);
+    if(idx<0)return;
+    PJS[idx]=restored;
+    saveProject(restored);
+    if(CUR===idx){if(TAB==='dash'){renderPG();renderTP();}else if(TAB==='board')renderBoard();else if(TAB==='team')renderTeam();else if(TAB==='budget')renderBudget();else if(TAB==='calendar')renderCalendar();}
+    renderSB();
+    showToast('↩ 되돌렸어요');
+  }catch(e){}
+}
+function showToast(msg){
+  let t=$('undoToast');
+  if(!t){t=document.createElement('div');t.id='undoToast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:300;pointer-events:none;transition:opacity .3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._to);t._to=setTimeout(()=>{t.style.opacity='0';},1800);
 }
 async function saveProject(pj){try{await setDoc(doc(db,'projects',pj.fbId),JSON.parse(JSON.stringify(pj)));}catch(e){alert('저장 실패: '+e.message);}}
 async function removeProject(id){try{await deleteDoc(doc(db,'projects',id));}catch(e){}}
@@ -152,8 +184,18 @@ function renderPG(){
   g.innerHTML=phases.map((name,i)=>{
     const ts=p.tasks.filter(t=>t.phase===i&&!t.parentId),done=ts.filter(t=>t.done).length,pct=pPct(p,i),col=PC[i%PC.length],isM=p.mp&&p.mp[i]!==undefined,isSel=SEL===i;
     const c=pct>=80?'#3b6d11':pct>=50?'#854f0b':'#1a1a1a';
-    return '<div class="pc'+(isSel?' sel':'')+'" id="pc-'+i+'" draggable="true" ondragstart="phaseDragStart(event,'+i+')" ondragover="phaseDragOver(event,'+i+')" ondrop="phaseDragDrop(event,'+i+')" ondragend="phaseDragEnd(event)" onclick="clickPC(event,'+i+')"><div class="pc-top"><div class="pc-ic" style="background:'+col.bg+'">'+(PI[i]||'📋')+'</div><span class="pc-pct" style="color:'+c+'">'+pct+'%</span></div><div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span class="phase-num-badge editable-phase-num" onclick="event.stopPropagation();editPhaseNum('+i+')" title="클릭하여 번호 수정" id="pnb-'+i+'">'+(p.phaseNums&&p.phaseNums[i]!==undefined?p.phaseNums[i]:(i+1))+'단계</span><div class="pc-nm editable-phase" ondblclick="editPhaseName('+i+')" title="더블클릭으로 수정" style="margin-bottom:0">'+name+'</div></div><div class="pc-ct">'+done+'/'+ts.length+(isM?' · 수동':'')+'</div><div class="pbar"><div class="pfill" style="width:'+pct+'%;background:'+col.br+'"></div></div><div class="mpr" onclick="event.stopPropagation()"><input type="number" class="mpi" min="0" max="100" value="'+pct+'" id="mp'+i+'"><span class="mplbl">%</span><button class="mpb" onclick="applyM('+i+')">적용</button>'+(isM?'<button class="mpb" style="color:#aaa" onclick="clearM('+i+')">초기화</button>':'')+'<button class="mpb" style="color:#c44;margin-left:auto" onclick="event.stopPropagation();removePhase(cp(),'+i+')">🗑</button></div></div>';
-  }).join('')+'<div class="pc pc-add" onclick="addPhase(cp())"><div style="font-size:24px;color:#ccc;margin-bottom:6px">+</div><div style="font-size:12px;color:#aaa">단계 추가</div></div>';
+    return '<div class="pc'+(isSel?' sel':'')+'" id="pc-'+i+'" draggable="true" ondragstart="phaseDragStart(event,'+i+')" ondragover="phaseDragOver(event,'+i+')" ondrop="phaseDragDrop(event,'+i+')" ondragend="phaseDragEnd(event)" onclick="clickPC(event,'+i+')">'
+      +'<div class="pc-top">'
+      +'<div class="pc-ic" style="background:'+col.bg+';flex-shrink:0">'+(PI[i]||'📋')+'</div>'
+      +'<span class="phase-num-badge editable-phase-num" onclick="event.stopPropagation();editPhaseNum('+i+')" title="클릭하여 번호 수정" id="pnb-'+i+'">'+(p.phaseNums&&p.phaseNums[i]!==undefined?p.phaseNums[i]:(i+1))+'단계</span>'
+      +'<span class="pc-nm editable-phase" ondblclick="editPhaseName('+i+')" title="더블클릭으로 수정" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+name+'</span>'
+      +'<span class="pc-pct" style="color:'+c+';flex-shrink:0">'+pct+'%</span>'
+      +'</div>'
+      +'<div class="pc-ct">'+done+'/'+ts.length+(isM?' · 수동':'')+'</div>'
+      +'<div class="pbar"><div class="pfill" style="width:'+pct+'%;background:'+col.br+'"></div></div>'
+      +'<div class="mpr" onclick="event.stopPropagation()"><input type="number" class="mpi" min="0" max="100" value="'+pct+'" id="mp'+i+'"><span class="mplbl">%</span><button class="mpb" onclick="applyM('+i+')">적용</button>'+(isM?'<button class="mpb" style="color:#aaa" onclick="clearM('+i+')">초기화</button>':'')+'<button class="mpb" style="color:#c44;margin-left:auto" onclick="event.stopPropagation();removePhaseNow('+i+')">🗑</button></div>'
+      +'</div>';
+  }).join('')+'<div class="pc pc-add" onclick="addPhaseNow()"><div style="font-size:24px;color:#ccc;margin-bottom:6px">+</div><div style="font-size:12px;color:#aaa">단계 추가</div></div>';
 }
 let phaseDragIdx=null;
 function phaseDragStart(e,i){phaseDragIdx=i;setTimeout(()=>{const el=$('pc-'+i);if(el)el.style.opacity='.4';},0);}
@@ -210,6 +252,7 @@ function taskRow(p,t,indent){
       +'<span class="assignee-main" style="font-size:9px">'+mn+'</span>'
       +'<button class="child-toggle-add" onclick="openInlineAdd(\''+t.id+'\')">+하위</button>'
       +'<button class="tr-edit-btn" onclick="openTaskModal(\''+t.id+'\')">✏️</button>'
+      +'<button class="tr-del-btn" onclick="deleteTask(\''+t.id+'\')">🗑</button>'
       +'</div></div>';
     if(exp&&ch.length) html+='<div class="sub-group">'+ch.map(c=>taskRow(p,c,indent+1)).join('')+'</div>';
     if(expandedTasks['__addsub_'+t.id])
@@ -233,6 +276,7 @@ function taskRow(p,t,indent){
     +expandBtn
     +'<button class="child-toggle-add" onclick="openInlineAdd(\''+t.id+'\')">+하위</button>'
     +'<button class="tr-edit-btn" onclick="openTaskModal(\''+t.id+'\')">✏️</button>'
+    +'<button class="tr-del-btn" onclick="deleteTask(\''+t.id+'\')">🗑</button>'
     +'</div></div>';
 
   if(exp&&ch.length) html+='<div class="sub-group">'+ch.map(c=>taskRow(p,c,1)).join('')+'</div>';
@@ -253,6 +297,7 @@ function commitInlineAdd(parentId){
   const inp=$('sub-inp-'+parentId);if(!inp||!inp.value.trim())return;
   const p=cp();if(!p)return;
   const par=p.tasks.find(x=>x.id===parentId);if(!par)return;
+  pushUndo(p);
   p.tasks.push(mkTask(par.phase,inp.value.trim(),'mid',getMain(par),parentId));
   delete expandedTasks['__addsub_'+parentId];
   expandedTasks[parentId]=true;
@@ -264,7 +309,7 @@ function renderTP(){
   const phases=getPhases(p);
   const i=SEL,ts=p.tasks.filter(t=>t.phase===i&&!t.parentId),col=PC[i%PC.length];
   const phName=phases[i]||('단계 '+(i+1));
-  tp.innerHTML='<div class="tpanel" ondragover="panelDragOver(event)" ondrop="panelDragDrop(event,'+i+')" ondragleave="panelDragLeave(event)"><div class="tp-hd"><span class="tp-ttl" style="color:'+col.ic+'">'+(PI[i]||'📋')+' <span class="editable-phase" ondblclick="editPhaseName('+i+')" title="더블클릭하여 단계명 수정">'+phName+'</span></span><button class="tp-x" onclick="SEL=null;renderPG();renderTP()">✕</button></div><div class="task-2col">'+ts.map(t=>taskRow(p,t)).join('')+'</div><div class="panel-promote-hint" id="promoteHint">📤 여기 드롭 → 상위 태스크로 독립</div><div class="add-row"><input type="text" class="add-inp" id="ai'+i+'" placeholder="상위 태스크 추가..."><button class="add-btn" onclick="addTask('+i+',null)">+ 추가</button></div></div>';
+  tp.innerHTML='<div class="tpanel"><div class="tp-hd"><span class="tp-ttl" style="color:'+col.ic+'">'+(PI[i]||'📋')+' <span class="editable-phase" ondblclick="editPhaseName('+i+')" title="더블클릭하여 단계명 수정">'+phName+'</span></span><button class="tp-x" onclick="SEL=null;renderPG();renderTP()">✕</button></div><div class="task-2col">'+ts.map(t=>taskRow(p,t)).join('')+'</div><div class="add-row"><input type="text" class="add-inp" id="ai'+i+'" placeholder="상위 태스크 추가..."><button class="add-btn" onclick="addTask('+i+',null)">+ 추가</button></div></div>';
   const ai=$('ai'+i);if(ai)ai.addEventListener('keydown',e=>{if(e.key==='Enter')addTask(i,null);});
 }
 function renderBoard(){
@@ -272,25 +317,32 @@ function renderBoard(){
   const phases=getPhases(p);
   $('TAB_BOARD').innerHTML='<div class="board-2col">'+phases.map((name,pi)=>{
     const ts=p.tasks.filter(t=>t.phase===pi&&!t.parentId),done=ts.filter(t=>t.done).length,pct=pPct(p,pi),col=PC[pi%PC.length];
-    return '<div class="tpanel" ondragover="panelDragOver(event)" ondrop="panelDragDrop(event,'+pi+')" ondragleave="panelDragLeave(event)"><div class="tp-hd"><span class="tp-ttl" style="color:'+col.ic+'">'+(PI[pi]||'📋')+' <span class="phase-num-badge-sm">'+(pi+1)+'</span> <span class="editable-phase" ondblclick="editPhaseName('+pi+')" title="더블클릭으로 수정">'+name+'</span> <span style="font-weight:400;font-size:11px;color:#aaa;margin-left:4px">'+done+'/'+ts.length+' · '+pct+'%</span></span></div><div class="pbar" style="margin-bottom:9px"><div class="pfill" style="width:'+pct+'%;background:'+col.br+'"></div></div><div class="task-2col">'+ts.map(t=>taskRow(p,t)).join('')+'</div><div class="panel-promote-hint">📤 하위업무를 여기 드롭하면 상위 태스크로 독립</div><div class="add-row"><input type="text" class="add-inp" id="bi'+pi+'" placeholder="태스크 추가..."><button class="add-btn" onclick="addTask('+pi+',null)">+ 추가</button></div></div>';
-  }).join('')+'<div class="tpanel pc-add" onclick="addPhase(cp())" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;cursor:pointer"><div style="font-size:28px;color:#ccc">+</div><div style="font-size:12px;color:#aaa;margin-top:6px">단계 추가</div></div></div>';
+    return '<div class="tpanel"><div class="tp-hd"><span class="tp-ttl" style="color:'+col.ic+'">'+(PI[pi]||'📋')+' <span class="phase-num-badge-sm">'+(pi+1)+'</span> <span class="editable-phase" ondblclick="editPhaseName('+pi+')" title="더블클릭으로 수정">'+name+'</span> <span style="font-weight:400;font-size:11px;color:#aaa;margin-left:4px">'+done+'/'+ts.length+' · '+pct+'%</span></span></div><div class="pbar" style="margin-bottom:9px"><div class="pfill" style="width:'+pct+'%;background:'+col.br+'"></div></div><div class="task-2col">'+ts.map(t=>taskRow(p,t)).join('')+'</div><div class="add-row"><input type="text" class="add-inp" id="bi'+pi+'" placeholder="태스크 추가..."><button class="add-btn" onclick="addTask('+pi+',null)">+ 추가</button></div></div>';
+  }).join('')+'<div class="tpanel pc-add" onclick="addPhaseNow()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;cursor:pointer"><div style="font-size:28px;color:#ccc">+</div><div style="font-size:12px;color:#aaa;margin-top:6px">단계 추가</div></div></div>';
   phases.forEach((_,pi)=>{const el=$('bi'+pi);if(el)el.addEventListener('keydown',e=>{if(e.key==='Enter')addTask(pi,null);});});
 }
 function renderTeam(){
   const p=cp();if(!p)return;
   const mems=p.members.length?p.members:[{name:'미정',rank:''}];
   const phases=getPhases(p);
-  let html='<div style="font-size:12px;color:#aaa;margin-bottom:12px;padding:8px 12px;background:#f5f5f3;border-radius:8px">💡 업무 카드를 드래그해서 다른 담당자 영역에 놓으면 담당자가 변경됩니다</div>';
+  // 전체 통계
+  const allTop=p.tasks.filter(t=>!t.parentId);
+  const totalDone=allTop.filter(t=>t.done).length;
+  // 상단 요약바
+  let html='<div class="team-summary">'
+    +'<span style="font-size:12px;color:#666">총 '+allTop.length+'개 업무 · 완료 '+totalDone+'개</span>'
+    +'<span style="font-size:11px;color:#aaa;margin-left:auto">💡 업무 카드를 드래그해서 다른 담당자로 넘기세요</span>'
+    +'</div>';
+  html+='<div class="team-grid">';
   mems.forEach((m,mi)=>{
     const nm=memName(m),rank=typeof m==='object'?m.rank||'':'';
-    const allT=p.tasks.filter(t=>(t.assignees||[]).some(a=>a.name===nm));
-    const topT=allT.filter(t=>!t.parentId);
+    const topT=p.tasks.filter(t=>!t.parentId&&(t.assignees||[]).some(a=>a.name===nm));
     const done=topT.filter(t=>t.done).length;
     const mainT=topT.filter(t=>(t.assignees||[]).find(a=>a.name===nm&&a.role==='main'));
-    const subT=topT.filter(t=>(t.assignees||[]).find(a=>a.name===nm&&a.role==='sub'));
     const pct=topT.length?Math.round(done/topT.length*100):0;
     const col=AVC[mi%AVC.length];
     const byPhase=phases.map((ph,pi)=>({ph,pi,tasks:topT.filter(t=>t.phase===pi)})).filter(x=>x.tasks.length>0);
+    const pctColor=pct>=70?'#3b6d11':pct>=30?'#854f0b':'#888';
 
     html+='<div class="team-member-card" id="tmc-'+mi+'"'
       +' ondragover="teamDragOver(event,\''+nm+'\')"'
@@ -298,34 +350,41 @@ function renderTeam(){
       +' ondragleave="teamDragLeave(event)">';
 
     // 헤더
-    html+='<div class="tmc-hd"><div style="display:flex;align-items:center;gap:10px">'
-      +'<div class="av" style="background:'+col.bg+';color:'+col.fg+';width:36px;height:36px;font-size:13px">'+nm.slice(0,2)+'</div>'
-      +'<div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:15px;font-weight:700">'+nm+'</span>'+(rank?'<span class="rank-badge">'+rank+'</span>':'')+'</div>'
-      +'<div style="font-size:12px;color:#aaa;margin-top:2px">총 '+topT.length+'건 · 완료 '+done+'건 · <span style="color:'+(pct>=70?'#3b6d11':pct>=30?'#854f0b':'#888')+'">'+pct+'%</span></div></div></div>'
-      +'<div style="display:flex;align-items:center;gap:8px"><span class="role-badge main-badge">M '+mainT.length+'</span><span class="role-badge sub-badge">S '+subT.length+'</span>'
-      +'<button onclick="editMember('+mi+')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;padding:4px">✏️</button></div></div>';
+    html+='<div class="tmc-hd">'
+      +'<div class="av" style="background:'+col.bg+';color:'+col.fg+';width:32px;height:32px;font-size:12px;flex-shrink:0">'+nm.slice(0,2)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<span style="font-size:14px;font-weight:700">'+nm+'</span>'
+      +(rank?'<span class="rank-badge">'+rank+'</span>':'')
+      +'</div>'
+      +'<div style="font-size:11px;color:#aaa;margin-top:1px">담당 '+topT.length+'건 · 완료 '+done+'건</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:5px">'
+      +'<span class="role-badge main-badge" style="font-size:10px">M '+mainT.length+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+pctColor+'">'+pct+'%</span>'
+      +'<button onclick="editMember('+mi+')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:2px">✏️</button>'
+      +'</div></div>';
 
     // 진행바
-    html+='<div class="pbar" style="margin:10px 0 14px;height:6px"><div class="pfill" style="width:'+pct+'%;background:'+col.fg+'"></div></div>';
+    html+='<div class="pbar" style="margin:8px 0 10px;height:5px"><div class="pfill" style="width:'+pct+'%;background:'+col.fg+'"></div></div>';
 
-    // 드롭 힌트 영역
+    // 드롭 힌트
     html+='<div class="tmc-drop-hint" id="tmc-hint-'+mi+'">여기에 업무를 드롭하세요</div>';
 
     // 단계별 업무 목록
     if(byPhase.length){
-      html+='<div class="tmc-phases">';
       byPhase.forEach(({ph,pi,tasks})=>{
         const phCol=PC[pi%PC.length];
         const phDone=tasks.filter(t=>t.done).length;
-        html+='<div class="tmc-phase-block"><div class="tmc-phase-hd">'
-          +'<span style="width:8px;height:8px;border-radius:2px;background:'+PCOLS[pi%PCOLS.length]+';display:inline-block;margin-right:5px"></span>'
-          +'<span style="font-size:11px;font-weight:600;color:'+phCol.ic+'">'+ph+'</span>'
-          +'<span style="font-size:10px;color:#aaa;margin-left:4px">'+phDone+'/'+tasks.length+'</span></div>';
+        html+='<div class="tmc-phase-block">'
+          +'<div class="tmc-phase-hd">'
+          +'<span style="width:7px;height:7px;border-radius:2px;background:'+PCOLS[pi%PCOLS.length]+';display:inline-block;margin-right:4px;flex-shrink:0"></span>'
+          +'<span style="font-size:10px;font-weight:600;color:'+phCol.ic+'">'+ph+'</span>'
+          +'<span style="font-size:10px;color:#aaa;margin-left:auto">'+phDone+'/'+tasks.length+'</span></div>';
         html+=tasks.map(t=>{
           const role=(t.assignees||[]).find(a=>a.name===nm);
           const isMain=role&&role.role==='main';
-          const children=getChildren(p,t.id);
-          const dr=t.startDate?t.startDate.slice(5).replace('-','/')+(t.endDate&&t.endDate!==t.startDate?'~'+t.endDate.slice(5).replace('-','/'):null):'';
+          const ch=getChildren(p,t.id);
           const drStr=t.startDate&&t.endDate&&t.startDate!==t.endDate?t.startDate.slice(5).replace('-','/')+'~'+t.endDate.slice(5).replace('-','/'):t.startDate?t.startDate.slice(5).replace('-','/'):null;
           return '<div class="tmc-task'+(t.done?' tmc-done':'')+'" draggable="true"'
             +' ondragstart="teamTaskDragStart(event,\''+t.id+'\')"'
@@ -334,51 +393,91 @@ function renderTeam(){
             +'<span class="role-dot '+(isMain?'main-dot':'sub-dot')+'"></span>'
             +'<span class="tmc-task-name">'+t.name+'</span>'
             +(drStr?'<span class="tr-date" style="font-size:9px">'+drStr+'</span>':'')
-            +(children.length?'<span style="font-size:9px;color:#aaa;margin-left:2px">+'+children.length+'</span>':'')
-            +(t.done?'<span style="font-size:10px;color:#3b6d11;margin-left:auto;flex-shrink:0">✓</span>':'')
+            +(ch.length?'<span style="font-size:9px;color:#aaa">+'+ch.length+'</span>':'')
+            +(t.done?'<span style="color:#3b6d11;font-size:10px;flex-shrink:0">✓</span>':'')
             +'</div>';
         }).join('');
         html+='</div>';
       });
-      html+='</div>';
     } else {
       html+='<div class="tmc-empty">담당 업무 없음</div>';
     }
     html+='</div>';
   });
-  $('TAB_TEAM').innerHTML=html+'<div class="bbar" style="margin-top:14px"><button class="bb" onclick="addMember()">+ 담당자 추가</button><button class="bb" onclick="removeMember()" style="color:#a32d2d">- 담당자 삭제</button></div>';
+  html+='</div>';
+  html+='<div class="bbar" style="margin-top:14px"><button class="bb" onclick="addMember()">+ 담당자 추가</button><button class="bb" onclick="removeMember()" style="color:#a32d2d">- 담당자 삭제</button></div>';
+  $('TAB_TEAM').innerHTML=html;
 }
 
 // ── 패널 드롭 존: 하위업무 → 상위업무 승격 ──
-function panelDragOver(e){
+// ── 탭 드래그앤드롭 ──
+let tabDragId=null;
+function tabDragStart(e,id){
+  tabDragId=id;
+  e.dataTransfer.effectAllowed='move';
+  e.stopPropagation();
+  setTimeout(()=>{const el=$('tb-'+id);if(el)el.style.opacity='.4';},0);
+}
+function tabDragEnd(){
+  // 모든 탭 opacity 완전히 복구
+  document.querySelectorAll('.tb').forEach(el=>{
+    el.style.opacity='';
+    el.classList.remove('tab-drag-over');
+  });
+  tabDragId=null;
+}
+function tabDragOver(e,id){
+  e.preventDefault();e.stopPropagation();
+  if(!tabDragId||tabDragId===id)return;
+  document.querySelectorAll('.tb').forEach(el=>el.classList.remove('tab-drag-over'));
+  const el=$('tb-'+id);if(el)el.classList.add('tab-drag-over');
+}
+function tabDragLeave(e){e.currentTarget.classList.remove('tab-drag-over');}
+function tabDragDrop(e,toId){
+  e.preventDefault();e.stopPropagation();
+  document.querySelectorAll('.tb').forEach(el=>el.classList.remove('tab-drag-over'));
+  if(!tabDragId||tabDragId===toId)return;
+  const bar=$('tabBar');if(!bar)return;
+  const fromEl=$('tb-'+tabDragId);
+  const toEl=$('tb-'+toId);
+  if(!fromEl||!toEl)return;
+  const nodes=[...bar.children];
+  const fi=nodes.indexOf(fromEl),ti=nodes.indexOf(toEl);
+  if(fi<ti)bar.insertBefore(fromEl,toEl.nextSibling);
+  else bar.insertBefore(fromEl,toEl);
+  // opacity는 dragEnd에서 복구 (tabDragId 여기서 null 안 함)
+}
+window.tabDragStart=tabDragStart;window.tabDragEnd=tabDragEnd;
+window.tabDragOver=tabDragOver;window.tabDragLeave=tabDragLeave;window.tabDragDrop=tabDragDrop;
+function panelDragOver(e){}  // 패널 내부 dragover는 무시 (버블링 차단용)
+function panelDragLeave(e){}
+function panelDragDrop(e){}
+function mainAreaDragOver(e){
   if(!dragId)return;
   const p=cp();if(!p)return;
   const t=p.tasks.find(x=>x.id===dragId);
-  if(!t||!t.parentId)return; // 이미 상위면 무시
-  e.preventDefault();e.stopPropagation();
-  e.dataTransfer.dropEffect='move';
-  const panel=e.currentTarget;
-  if(!panel.classList.contains('tmc-drag-target'))panel.classList.add('panel-drop-active');
-  const hint=panel.querySelector('.panel-promote-hint');
-  if(hint)hint.classList.add('panel-hint-active');
+  if(!t||!t.parentId)return;
+  if(e.target.closest('.tpanel')||e.target.closest('.sub-group'))return;
+  e.preventDefault();
+  const banner=$('mainDropBanner');
+  if(banner)banner.style.display='flex';
 }
-function panelDragLeave(e){
-  if(e.currentTarget.contains(e.relatedTarget))return;
-  e.currentTarget.classList.remove('panel-drop-active');
-  const hint=e.currentTarget.querySelector('.panel-promote-hint');
-  if(hint)hint.classList.remove('panel-hint-active');
+function mainAreaDragLeave(e){
+  if(e.relatedTarget&&e.currentTarget.contains(e.relatedTarget))return;
+  const banner=$('mainDropBanner');
+  if(banner)banner.style.display='none';
 }
-function panelDragDrop(e,phaseIdx){
-  e.currentTarget.classList.remove('panel-drop-active');
-  const hint=e.currentTarget.querySelector('.panel-promote-hint');
-  if(hint)hint.classList.remove('panel-hint-active');
+function mainAreaDrop(e){
+  const banner=$('mainDropBanner');
+  if(banner)banner.style.display='none';
   if(!dragId)return;
   const p=cp();if(!p)return;
   const t=p.tasks.find(x=>x.id===dragId);
-  if(!t||!t.parentId)return; // 이미 상위면 무시
-  e.preventDefault();e.stopPropagation();
-  t.parentId=null; // 부모 제거 → 상위 태스크로 독립
-  t.phase=phaseIdx;
+  if(!t||!t.parentId)return;
+  if(e.target.closest('.tpanel')||e.target.closest('.sub-group'))return;
+  e.preventDefault();
+  pushUndo(p);
+  t.parentId=null;
   saveProject(p);
   if(TAB==='dash'){renderPG();renderTP();}else renderBoard();
 }
@@ -429,14 +528,9 @@ function teamDragDrop(e,toName){
   const t=p.tasks.find(x=>x.id===teamDragTaskId);if(!t)return;
   const curMain=getMain(t);
   if(curMain===toName){teamDragTaskId=null;return;}
-  // MAIN 담당자를 toName으로 변경, 기존 MAIN은 SUB로 전환
-  if(!t.assignees)t.assignees=[];
-  const curMainIdx=t.assignees.findIndex(a=>a.role==='main');
-  if(curMainIdx>=0)t.assignees[curMainIdx].role='sub'; // 기존 MAIN → SUB
-  // 이미 toName이 SUB로 있으면 그걸 MAIN으로 승격
-  const existing=t.assignees.findIndex(a=>a.name===toName);
-  if(existing>=0)t.assignees[existing].role='main';
-  else t.assignees.unshift({name:toName,role:'main'});
+  pushUndo(p);
+  // MAIN만 toName으로 교체 — SUB 전부 제거
+  t.assignees=[{name:toName,role:'main'}];
   teamDragTaskId=null;
   saveProject(p);renderTeam();
 }
@@ -541,6 +635,7 @@ function saveTaskModal(){
     p.tasks.push(t);saveProject(p);$('taskModal').classList.remove('open');renderCalendar();return;
   }
   const t=p.tasks.find(x=>x.id===taskId);if(!t)return;
+  pushUndo(p);
   t.name=$('tm-name').value.trim()||t.name;t.priority=$('tm-priority').value;t.phase=parseInt($('tm-phase').value);
   const nm=$('tm-main').value;const curSubs=(t.assignees||[]).filter(a=>a.role==='sub');
   t.assignees=[{name:nm,role:'main'},...curSubs];
@@ -578,13 +673,30 @@ function editPhaseName(i){
   if(TAB==='dash'){renderPG();renderTP();}else if(TAB==='board')renderBoard();else if(TAB==='calendar')renderCalendar();
 }
 function toggleExpand(id){expandedTasks[id]=!expandedTasks[id];if(TAB==='dash')renderTP();else renderBoard();}
+function deleteTask(id){
+  const p=cp();if(!p)return;
+  // 하위업무 포함 재귀 삭제
+  const toDelete=new Set();
+  const collect=(tid)=>{
+    toDelete.add(tid);
+    p.tasks.filter(t=>t.parentId===tid).forEach(c=>collect(c.id));
+  };
+  collect(id);
+  pushUndo(p);
+  p.tasks=p.tasks.filter(t=>!toDelete.has(t.id));
+  saveProject(p);
+  if(TAB==='dash'){renderPG();renderTP();}else if(TAB==='board')renderBoard();else if(TAB==='team')renderTeam();
+}
+window.deleteTask=deleteTask;
 function toggleTask(id){
-  const p=cp();if(!p)return;const t=p.tasks.find(x=>x.id===id);if(t){t.done=!t.done;saveProject(p);
+  const p=cp();if(!p)return;const t=p.tasks.find(x=>x.id===id);
+  if(t){pushUndo(p);t.done=!t.done;saveProject(p);
   if(TAB==='dash'){renderPG();renderTP();}else if(TAB==='board')renderBoard();else if(TAB==='team')renderTeam();else if(TAB==='calendar')renderCalendar();}
 }
 function addTask(pi,parentId){
   const inp=parentId?null:($('ai'+pi)||$('bi'+pi));const nm=inp?inp.value.trim():null;if(inp&&!nm)return;
   const p=cp();if(!p)return;const mn=p.members[0]?memName(p.members[0]):'미정';
+  pushUndo(p);
   p.tasks.push(mkTask(pi,nm||'새 하위 업무','mid',mn,parentId||null));if(inp)inp.value='';saveProject(p);
   if(TAB==='dash'){renderPG();renderTP();}else renderBoard();
 }
@@ -680,16 +792,13 @@ function dragDrop(e,targetId){
   const from=p.tasks.find(t=>t.id===dragId);
   const to=p.tasks.find(t=>t.id===targetId);
   if(!from||!to)return;
-
+  pushUndo(p);
   if(isChildDrop){
-    // 상위업무 → 다른 상위의 하위로 편입
     if(to.parentId===dragId||to.id===from.parentId)return;
     from.parentId=to.id;
     from.phase=to.phase;
     expandedTasks[to.id]=true;
   } else {
-    // 순서 이동: 같은 레벨(같은 parentId)끼리
-    // 다른 parentId면 같은 레벨로 이동 + parentId 맞춤
     from.parentId=to.parentId||null;
     from.phase=to.phase;
     const fromIdx=p.tasks.findIndex(t=>t.id===dragId);
@@ -701,6 +810,23 @@ function dragDrop(e,targetId){
   if(TAB==='dash'){renderPG();renderTP();}else renderBoard();
 }
 document.addEventListener('keydown',e=>{
+  // Ctrl+Z 언두
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){
+    if($('taskModal').classList.contains('open')||$('formModal').classList.contains('open'))return;
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+    e.preventDefault();undoLast();return;
+  }
+  // Delete 키 — 마지막으로 호버한 태스크 삭제
+  if(e.key==='Delete'&&!e.ctrlKey&&!e.metaKey){
+    if($('taskModal').classList.contains('open')||$('formModal').classList.contains('open'))return;
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+    const hovered=document.querySelector('.tr:hover,.sub-tr:hover');
+    if(hovered){
+      const id=hovered.id.replace('tr-','');
+      if(id)deleteTask(id);
+    }
+    return;
+  }
   if(e.key==='Escape'){
     if($('taskModal').classList.contains('open'))closeTaskModal();
     else if($('formModal').classList.contains('open'))closeForm();
@@ -726,13 +852,15 @@ window.addEventListener('popstate',e=>{
 });
 // ── 전역 노출 (모든 함수 정의 후) ──
 window.selPj=selPj;window.newPj=newPj;window.editPj=editPj;window.closeForm=closeForm;window.submitForm=submitForm;
+window.undoLast=undoLast;
 window.sw=sw;window.clickPC=clickPC;window.applyM=applyM;window.clearM=clearM;window.toggleExpand=toggleExpand;
 window.toggleTask=toggleTask;window.addTask=addTask;window.openTaskModal=openTaskModal;window.saveTaskModal=saveTaskModal;window.closeTaskModal=closeTaskModal;window.addSubModal=addSubModal;window.removeSubModal=removeSubModal;window.addChildModal=addChildModal;
 window.openInlineAdd=openInlineAdd;window.cancelInlineAdd=cancelInlineAdd;window.commitInlineAdd=commitInlineAdd;
 window.dragStart=dragStart;window.dragEnd=dragEnd;window.dragOver=dragOver;window.dragLeave=dragLeave;window.dragDrop=dragDrop;
 window.phaseDragStart=phaseDragStart;window.phaseDragEnd=phaseDragEnd;window.phaseDragOver=phaseDragOver;window.phaseDragDrop=phaseDragDrop;
 window.panelDragOver=panelDragOver;window.panelDragLeave=panelDragLeave;window.panelDragDrop=panelDragDrop;
-window.editPhaseName=editPhaseName;window.editPhaseNum=editPhaseNum;window.addPhase=addPhase;window.removePhase=removePhase;
+window.mainAreaDragOver=mainAreaDragOver;window.mainAreaDragLeave=mainAreaDragLeave;window.mainAreaDrop=mainAreaDrop;
+window.editPhaseName=editPhaseName;window.editPhaseNum=editPhaseNum;window.addPhase=addPhase;window.addPhaseNow=addPhaseNow;window.removePhase=removePhase;window.removePhaseNow=removePhaseNow;
 window.saveSharedMemo=saveSharedMemo;
 window.addMember=addMember;window.removeMember=removeMember;window.editMember=editMember;
 window.teamTaskDragStart=teamTaskDragStart;window.teamTaskDragEnd=teamTaskDragEnd;
@@ -792,12 +920,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sbadge{font-size:10px;padding:3px 9px;border-radius:10px;font-weight:600}
 .s-act{background:#e6f1fb;color:#0c447c}.s-fin{background:#eaf3de;color:#27500a}
 .tabs{display:flex;gap:5px;flex-wrap:wrap}
-.tb{padding:6px 12px;font-size:12px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;cursor:pointer;user-select:none}
-.tb:hover{background:#f5f5f3}.tb.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
-.tb.budget-t{border-color:#fac775;color:#633806;background:#faeeda}.tb.budget-t.on{background:#854f0b;color:#faeeda;border-color:#854f0b}
-.tb.result-t{border-color:#97c459;color:#27500a;background:#eaf3de}.tb.result-t.on{background:#3b6d11;color:#eaf3de;border-color:#3b6d11}
-.tb.cal-t{border-color:#afa9ec;color:#3c3489;background:#eeedfe}.tb.cal-t.on{background:#534ab7;color:#eeedfe;border-color:#534ab7}
-.tb.edit-t{color:#aaa}
+.tb{padding:6px 12px;font-size:12px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;cursor:pointer;user-select:none;font-weight:500;transition:background .12s,color .12s,border-color .12s}
+.tb:hover{background:#f0f0ee;color:#1a1a1a}
+.tb.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.tb.budget-t{border-color:#ddd;color:#555;background:#fff}.tb.budget-t:hover{background:#faeeda;color:#633806}.tb.budget-t.on{background:#854f0b;color:#fff;border-color:#854f0b}
+.tb.result-t{border-color:#ddd;color:#555;background:#fff}.tb.result-t:hover{background:#eaf3de;color:#27500a}.tb.result-t.on{background:#3b6d11;color:#fff;border-color:#3b6d11}
+.tb.cal-t{border-color:#ddd;color:#555;background:#fff}.tb.cal-t:hover{background:#eeedfe;color:#3c3489}.tb.cal-t.on{background:#534ab7;color:#fff;border-color:#534ab7}
+.tb.edit-t{color:#888;border-color:#ddd}
 .krow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .kcard{background:#f5f5f3;border-radius:10px;padding:11px 13px}
 .klbl{font-size:11px;color:#aaa;margin-bottom:3px}.kval{font-size:20px;font-weight:600}
@@ -811,9 +940,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px}
 .pc{background:#fff;border:1px solid #e8e6df;border-radius:12px;padding:14px;cursor:pointer;transition:border-color .15s}
 .pc:hover{border-color:#b4b2a9}.pc.sel{border:2px solid #185fa5}
-.pc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
-.pc-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
-.pc-pct{font-size:19px;font-weight:700}.pc-nm{font-size:12px;font-weight:600;margin-bottom:3px}.pc-ct{font-size:11px;color:#aaa;margin-bottom:7px}
+.pc-top{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.pc-ic{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.pc-pct{font-size:16px;font-weight:700}.pc-nm{font-size:12px;font-weight:600}.pc-ct{font-size:11px;color:#aaa;margin-bottom:7px}
 .pbar{height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden}
 .pfill{height:100%;border-radius:3px;transition:width .4s}
 .mpr{display:flex;align-items:center;gap:5px;margin-top:8px}
@@ -846,9 +975,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .child-toggle-add:hover{border-color:#888;color:#555}
 .tr-edit-btn{background:none;border:none;cursor:pointer;color:#ddd;font-size:12px;padding:1px 3px}
 .tr-edit-btn:hover{color:#666}
-/* 태스크 목록 - 1단 */
-.task-2col{display:flex;flex-direction:column;gap:0}
-.board-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tr-del-btn{background:none;border:none;cursor:pointer;color:#ddd;font-size:12px;padding:1px 3px;opacity:0;transition:opacity .15s}
+.tr:hover .tr-del-btn,.sub-tr:hover .tr-del-btn{opacity:1}
+.tr-del-btn:hover{color:#c44}
 /* 캘린더 */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .add-row{display:flex;gap:6px;margin-top:8px}
@@ -924,16 +1053,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sub-tr-body .tn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 .sub-tr-body .chk{width:15px;height:15px;flex-shrink:0;font-size:9px;border-radius:3px}
 .sub-inline{margin-left:36px;margin-bottom:6px;background:#f4f9fe;border-radius:8px;padding:6px 8px;border:1px dashed #b5d4f4}
-.task-2col{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.board-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.task-2col{display:flex;flex-direction:column;gap:0}
+.board-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
 .inline-add-row{display:flex;gap:6px;align-items:center;padding:5px 0 2px;margin-bottom:2px}
 /* 공유 메모 */
 .shared-memo-wrap{background:#fffdf0;border:1.5px solid #f0e6a0;border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .shared-memo-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:13px;font-weight:600;color:#6b5800}
 .shared-memo-ta{width:100%;border:1px solid #e8d97a;border-radius:8px;padding:10px 12px;font-size:13px;background:#fff;resize:vertical;min-height:72px;outline:none;font-family:inherit;line-height:1.6;color:#333;transition:border-color .2s}
 .shared-memo-ta:focus{border-color:#c9a800}
+/* 팀 그리드 */
+.team-summary{display:flex;align-items:center;padding:8px 12px;background:#f5f5f3;border-radius:8px;margin-bottom:14px}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 /* 팀 탭 드래그 */
-.team-member-card{background:#fff;border:1px solid #e8e6df;border-radius:14px;padding:18px 20px;margin-bottom:12px;transition:border-color .15s}
+.team-member-card{background:#fff;border:1px solid #e8e6df;border-radius:14px;padding:16px 18px;transition:border-color .15s}
+/* 탭 드래그 */
+.tb{cursor:grab}
+.tb.tab-drag-over{border-color:#185fa5;background:#e6f1fb;color:#0c447c}
 .tmc-task{display:flex;align-items:center;gap:7px;padding:6px 2px;border-bottom:1px solid #f0f0ee;font-size:12px;cursor:grab;transition:background .1s}
 .tmc-task:hover{background:#f8f8f6}
 .tmc-task:active{cursor:grabbing}
@@ -989,7 +1124,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 <div class="app">
 <div class="sb" id="SB"></div>
-<div class="main-wrap">
+<div class="main-wrap" ondragover="mainAreaDragOver(event)" ondragleave="mainAreaDragLeave(event)" ondrop="mainAreaDrop(event)">
+<div id="mainDropBanner" style="display:none;position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#185fa5;color:#fff;padding:12px 28px;border-radius:12px;font-size:13px;font-weight:600;gap:10px;align-items:center;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.2);">📤 여기서 손을 놓으면 상위 태스크로 독립돼요!</div>
 <div class="main">
   <div id="vEmpty" class="view active">
     <div class="empty-wrap">
@@ -1005,13 +1141,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="db-ttl" id="dbTitle">행사 대시보드 <span class="sbadge s-act">진행중</span></div>
         <div class="db-sub" id="dbSub"></div>
       </div>
-      <div class="tabs">
-        <button class="tb on" onclick="sw('dash')" id="tb-dash">📊 대시보드</button>
-        <button class="tb" onclick="sw('board')" id="tb-board">✅ 태스크</button>
-        <button class="tb" onclick="sw('team')" id="tb-team">👥 팀</button>
-        <button class="tb budget-t" onclick="sw('budget')" id="tb-budget">💰 예산</button>
-        <button class="tb cal-t" onclick="sw('calendar')" id="tb-calendar">📆 캘린더</button>
-        <button class="tb result-t" onclick="sw('result')" id="tb-result">🏆 성과</button>
+      <div class="tabs" id="tabBar">
+        <button class="tb on" id="tb-dash" draggable="true" ondragstart="tabDragStart(event,'dash')" ondragover="tabDragOver(event,'dash')" ondrop="tabDragDrop(event,'dash')" ondragend="tabDragEnd()" ondragleave="tabDragLeave(event)" onclick="sw('dash')">📊 대시보드</button>
+        <button class="tb" id="tb-board" draggable="true" ondragstart="tabDragStart(event,'board')" ondragover="tabDragOver(event,'board')" ondrop="tabDragDrop(event,'board')" ondragend="tabDragEnd()" ondragleave="tabDragLeave(event)" onclick="sw('board')">✅ 태스크</button>
+        <button class="tb" id="tb-team" draggable="true" ondragstart="tabDragStart(event,'team')" ondragover="tabDragOver(event,'team')" ondrop="tabDragDrop(event,'team')" ondragend="tabDragEnd()" ondragleave="tabDragLeave(event)" onclick="sw('team')">👥 팀</button>
+        <button class="tb budget-t" id="tb-budget" draggable="true" ondragstart="tabDragStart(event,'budget')" ondragover="tabDragOver(event,'budget')" ondrop="tabDragDrop(event,'budget')" ondragend="tabDragEnd()" ondragleave="tabDragLeave(event)" onclick="sw('budget')">💰 예산</button>
+        <button class="tb cal-t" id="tb-calendar" draggable="true" ondragstart="tabDragStart(event,'calendar')" ondragover="tabDragOver(event,'calendar')" ondrop="tabDragDrop(event,'calendar')" ondragend="tabDragEnd()" ondragleave="tabDragLeave(event)" onclick="sw('calendar')">📆 캘린더</button>
+        <button class="tb result-t" id="tb-result" draggable="true" ondragstart="tabDragStart(event,'result')" ondragover="tabDragOver(event,'result')" ondrop="tabDragDrop(event,'result')" ondragend="tabDragEnd()" ondragleave="tabDragLeave(event)" onclick="sw('result')">🏆 성과</button>
         <button class="tb edit-t" onclick="editPj()">✏️ 수정</button>
       </div>
     </div>
