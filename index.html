@@ -9,29 +9,15 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;font-size:14px}
 .app{display:flex;min-height:100vh}
-.sb{width:160px;background:#fff;border-right:1px solid #e8e6df;display:flex;flex-direction:column;gap:3px;padding:14px 10px;position:sticky;top:0;height:100vh;overflow-y:auto}
-.sb-header{font-size:10px;font-weight:700;color:#aaa;letter-spacing:.08em;text-transform:uppercase;padding:4px 6px 8px;border-bottom:1px solid #f0f0f0;margin-bottom:4px}
-.pn{width:100%;padding:8px 10px;border-radius:9px;display:flex;flex-direction:column;gap:2px;cursor:pointer;border:1px solid transparent;color:#666;background:transparent;transition:all .15s;position:relative;user-select:none;text-align:left}
-.pn:hover{background:#f5f5f3;color:#1a1a1a}
-.pn.act{background:#e6f1fb;color:#0c447c;border-color:#b5d4f4}
-.pn.fin{background:#eaf3de;color:#27500a;border-color:#c0dd97}
-.pn-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
-.pn-dday{font-size:10px;font-weight:600;margin-top:1px}
-.pn-dday.urgent{color:#a32d2d}
-.pn-dday.soon{color:#854f0b}
-.pn-dday.ok{color:#3b6d11}
-.pn-dday.done{color:#3b6d11}
-.pn-dday.nodday{color:#aaa}
-.pn.addp{background:transparent;border:1.5px dashed #ddd;color:#aaa;font-size:12px;text-align:center;padding:8px 10px;justify-content:center;align-items:center;flex-direction:row}
-.pn.addp:hover{border-color:#aaa;color:#666}
-.ddot{position:absolute;top:6px;right:8px;width:7px;height:7px;border-radius:50%;background:#639922}
-.main{flex:1;padding:24px;max-width:860px}
-.dday-banner{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:10px;margin-bottom:14px;font-size:13px;font-weight:500;flex-wrap:wrap}
-.dday-banner.urgent{background:#fcebeb;border:1px solid #f09595;color:#791f1f}
-.dday-banner.soon{background:#faeeda;border:1px solid #fac775;color:#633806}
-.dday-banner.ok{background:#e6f1fb;border:1px solid #85b7eb;color:#0c447c}
-.dday-banner.today{background:#eaf3de;border:1px solid #97c459;color:#27500a}
-.dday-num{font-size:22px;font-weight:800}
+.sb{width:56px;background:#fff;border-right:1px solid #e8e6df;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;position:sticky;top:0;height:100vh}
+.pn{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;color:#888780;background:#f1efe8;transition:all .15s;position:relative;user-select:none}
+.pn:hover{background:#e8e6df;color:#2c2c2a}
+.pn.act{background:#e6f1fb;color:#0c447c;border-color:#85b7eb}
+.pn.fin{background:#eaf3de;color:#27500a;border-color:#97c459}
+.pn.addp{background:transparent;border:1.5px dashed #ccc;color:#bbb;font-size:22px;line-height:1}
+.pn.addp:hover{border-color:#888;color:#666}
+.ddot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#639922}
+.main{flex:1;padding:24px;max-width:900px}
 .view{display:none}.view.active{display:block}
 .empty-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;color:#888}
 .empty-wrap svg{opacity:.3}
@@ -195,9 +181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .rkpi-unit{font-size:11px;color:#888;margin-top:1px}
 .cg2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 
-@media(max-width:700px){
-  .sb{width:120px}
-  .pn-name{max-width:90px}
+@media(max-width:600px){
   .krow{grid-template-columns:repeat(2,1fr)}
   .cg2{grid-template-columns:1fr}
   .tabs{gap:4px}
@@ -282,11 +266,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
     <div class="fg">
-      <label class="fl">행사일 (D-day 카운트다운용)</label>
-      <input type="date" class="fi" id="fDate">
-      <div class="fhint">입력하면 대시보드에 D-day가 표시됩니다</div>
-    </div>
-    <div class="fg">
       <label class="fl">총 예산 (만원) — 나중에 입력 가능</label>
       <input type="number" class="fi" id="fBudget" placeholder="예: 5000">
       <div class="fhint">예산 탭에서 항목별로 세분화할 수 있어요</div>
@@ -328,44 +307,18 @@ function tPct(p){return p.tasks.length?Math.round(p.tasks.filter(t=>t.done).leng
 function bPl(p){return p.budget.cats.reduce((s,c)=>s+n(c.planned),0);}
 function bAc(p){return p.budget.cats.reduce((s,c)=>s+n(c.actual),0);}
 
-function calcDday(dateStr){
-  if(!dateStr)return null;
-  const today=new Date();today.setHours(0,0,0,0);
-  const ev=new Date(dateStr);ev.setHours(0,0,0,0);
-  return Math.round((ev-today)/(1000*60*60*24));
-}
-function ddayLabel(d){
-  if(d===null)return{txt:'날짜 미설정',cls:'nodday'};
-  if(d>0)return{txt:`D-${d}`,cls:d<=7?'urgent':d<=30?'soon':'ok'};
-  if(d===0)return{txt:'D-DAY',cls:'done'};
-  return{txt:`D+${Math.abs(d)}`,cls:'done'};
-}
 function renderSB(){
-  const sbEl=$('SB');
-  let html=`<div class="sb-header">행사 목록</div>`;
-  html+=PJS.map((p,i)=>{
+  $('SB').innerHTML=PJS.map((p,i)=>{
     const isDone=p.result&&p.result.isDone;
-    const d=calcDday(p.eventDate);
-    const dl=ddayLabel(d);
-    const nm=p.name||('새 행사 '+(i+1));
-    return `<div class="pn${i===CUR?' act':''}${isDone?' fin':''}" onclick="selPj(${i})" title="${nm}">
-      <span class="pn-name">${nm}</span>
-      <span class="pn-dday ${dl.cls}">${isDone?'✓ 완료':dl.txt}</span>
-      ${isDone?'<span class="ddot"></span>':''}
-    </div>`;
-  }).join('');
-  html+=`<div class="pn addp" onclick="newPj()">+ 새 행사 추가</div>`;
-  sbEl.innerHTML=html;
+    return `<div class="pn${i===CUR?' act':''}${isDone?' fin':''}" onclick="selPj(${i})" title="${p.name||'행사 '+(i+1)}">${i+1}${isDone?'<span class="ddot"></span>':''}</div>`;
+  }).join('')+`<div class="pn addp" onclick="newPj()" title="새 행사 추가">+</div>`;
 }
 function selPj(i){CUR=i;SEL=null;TAB='dash';renderSB();showDash();}
 function showView(id){['vEmpty','vDash'].forEach(v=>$(v).classList.remove('active'));$(id).classList.add('active');}
 function showDash(){
   showView('vDash');const p=cp();
-  const d=calcDday(p.eventDate);
-  const dl=ddayLabel(d);
-  $('dbTitle').innerHTML=`${p.name||'행사 대시보드'} <span class="sbadge ${p.result&&p.result.isDone?'s-fin':'s-act'}">${p.result&&p.result.isDone?'완료':dl.txt!=='날짜 미설정'?dl.txt:'진행중'}</span>`;
-  const dateTxt=p.eventDate?` · 행사일: ${p.eventDate.replace(/-/g,'/')}`:' · 행사일 미설정';
-  $('dbSub').textContent=[p.type,p.scale].filter(Boolean).join(' · ')+dateTxt;
+  $('dbTitle').innerHTML=`${p.name||'행사 대시보드'} <span class="sbadge ${p.result&&p.result.isDone?'s-fin':'s-act'}">${p.result&&p.result.isDone?'완료':'진행중'}</span>`;
+  $('dbSub').textContent=[p.type,p.scale].filter(Boolean).join(' · ');
   sw(TAB);
 }
 function sw(t){
@@ -379,18 +332,7 @@ function renderDash(){
   const ba=bAc(p),bt=p.budget.total,bPct=bt>0?Math.round(ba/bt*100):null;
   const bKpi=bt>0?`<div class="kcard"><div class="klbl">예산 집행</div><div class="kval ${bPct>100?'r':bPct>80?'a':'b'}">${bPct}%</div></div>`:`<div class="kcard"><div class="klbl">긴급 미완료</div><div class="kval ${hi>0?'a':''}">${hi}</div></div>`;
   const bBar=bt>0?`<div class="notice n-amber">💰 총 예산 ${f(bt)}만원 · 집행 ${f(ba)}만원 · 잔여 <strong>${f(bt-ba)}만원</strong><button class="n-btn" style="background:#faeeda;border:1px solid #fac775;color:#633806" onclick="sw('budget')">예산 상세</button></div>`:'';
-  // D-day banner
-  const d=calcDday(p.eventDate);
-  let ddayBanner='';
-  if(d!==null){
-    const isFinished=p.result&&p.result.isDone;
-    if(!isFinished){
-      if(d===0) ddayBanner=`<div class="dday-banner today">🎉 <span class="dday-num">D-DAY</span> 오늘이 행사일입니다!</div>`;
-      else if(d>0) ddayBanner=`<div class="dday-banner ${d<=7?'urgent':d<=30?'soon':'ok'}">📅 행사까지 <span class="dday-num">D-${d}</span> ${d<=7?'⚠️ 곧 행사입니다!':d<=30?'준비에 박차를 가하세요':'여유있게 준비할 수 있어요'}</div>`;
-      else ddayBanner=`<div class="dday-banner today">✅ <span class="dday-num">D+${Math.abs(d)}</span> 행사가 종료되었습니다. 성과를 입력해보세요! <button class="n-btn" style="background:#eaf3de;border:1px solid #97c459;color:#27500a" onclick="sw('result')">성과 입력</button></div>`;
-    }
-  }
-  $('TAB_DASH').innerHTML=`${ddayBanner}<div class="krow"><div class="kcard"><div class="klbl">전체 태스크</div><div class="kval">${tot}</div></div><div class="kcard"><div class="klbl">완료</div><div class="kval g">${done}</div></div><div class="kcard"><div class="klbl">진행률</div><div class="kval ${pct>=70?'g':pct>=30?'a':''}">${pct}%</div></div>${bKpi}</div>${bBar}<div class="pgrid" id="PG"></div><div id="TP"></div><div class="bbar"><button class="bb" onclick="exportCSV()">📥 CSV 내보내기</button><button class="bb" style="margin-left:auto;color:#a32d2d" onclick="delPj()">🗑️ 프로젝트 삭제</button></div>`;
+  $('TAB_DASH').innerHTML=`<div class="krow"><div class="kcard"><div class="klbl">전체 태스크</div><div class="kval">${tot}</div></div><div class="kcard"><div class="klbl">완료</div><div class="kval g">${done}</div></div><div class="kcard"><div class="klbl">진행률</div><div class="kval ${pct>=70?'g':pct>=30?'a':''}">${pct}%</div></div>${bKpi}</div>${bBar}<div class="pgrid" id="PG"></div><div id="TP"></div><div class="bbar"><button class="bb" onclick="exportCSV()">📥 CSV 내보내기</button><button class="bb" style="margin-left:auto;color:#a32d2d" onclick="delPj()">🗑️ 프로젝트 삭제</button></div>`;
   renderPG();renderTP();
 }
 function renderPG(){
@@ -552,15 +494,14 @@ function addMember(){const p=cp();if(!p)return;const nm=prompt('새 담당자 �
 function delPj(){if(!confirm('이 프로젝트를 삭제할까요?'))return;PJS.splice(CUR,1);CUR=PJS.length?0:null;SEL=null;renderSB();CUR!==null?showDash():showView('vEmpty');}
 function exportCSV(){const p=cp();if(!p)return;const rows=[['단계','태스크','우선순위','담당자','상태']];p.tasks.forEach(t=>rows.push([PH[t.phase],t.name,t.priority==='high'?'높음':t.priority==='mid'?'보통':'낮음',t.assignee,t.done?'완료':'미완료']));const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${p.name||'행사'}.csv`;a.click();URL.revokeObjectURL(url);}
 function newPj(){EDIT=false;clearForm();$('formModal').classList.add('open');}
-function editPj(){EDIT=true;const p=cp();if(!p)return;$('fName').value=p.name||'';$('fMembers').value=p.members.join(', ');$('fBudget').value=p.budget.total||'';$('fDate').value=p.eventDate||'';$('formModal').classList.add('open');}
+function editPj(){EDIT=true;const p=cp();if(!p)return;$('fName').value=p.name||'';$('fMembers').value=p.members.join(', ');$('fBudget').value=p.budget.total||'';$('formModal').classList.add('open');}
 function closeForm(){$('formModal').classList.remove('open');}
-function clearForm(){['fName','fMembers','fBudget','fDate'].forEach(id=>{const el=$(id);if(el)el.value='';});document.querySelectorAll('.fp.on').forEach(b=>b.classList.remove('on'));}
+function clearForm(){['fName','fMembers','fBudget'].forEach(id=>{const el=$(id);if(el)el.value='';});document.querySelectorAll('.fp.on').forEach(b=>b.classList.remove('on'));}
 function submitForm(){
   const name=$('fName').value.trim(),type=[...document.querySelectorAll('#fType .fp.on')].map(b=>b.dataset.v).join(', '),scale=[...document.querySelectorAll('#fScale .fp.on')].map(b=>b.dataset.v).join('');
   const rawM=$('fMembers').value.trim(),mems=rawM?rawM.split(',').map(s=>s.trim()).filter(Boolean):['김민준','이서연','박지호','최유나'],bt=n($('fBudget').value);
-  const eventDate=$('fDate').value||'';
-  if(EDIT&&CUR!==null){const p=PJS[CUR];p.name=name||p.name;p.type=type||p.type;p.scale=scale||p.scale;p.members=mems;p.eventDate=eventDate;if(bt>0)p.budget.total=bt;closeForm();showDash();renderSB();return;}
-  const pj={name:name||'새 행사 '+(PJS.length+1),type,scale,members:mems,eventDate,tasks:[],mp:{},budget:mkBudget(bt),result:mkResult()};
+  if(EDIT&&CUR!==null){const p=PJS[CUR];p.name=name||p.name;p.type=type||p.type;p.scale=scale||p.scale;p.members=mems;if(bt>0)p.budget.total=bt;closeForm();showDash();renderSB();return;}
+  const pj={name:name||'새 행사 '+(PJS.length+1),type,scale,members:mems,tasks:[],mp:{},budget:mkBudget(bt),result:mkResult()};
   pj.tasks=mkTasks(mems);PJS.push(pj);CUR=PJS.length-1;SEL=null;TAB='dash';closeForm();renderSB();showDash();
 }
 ['fType','fComp','fScale'].forEach((id,idx)=>{
